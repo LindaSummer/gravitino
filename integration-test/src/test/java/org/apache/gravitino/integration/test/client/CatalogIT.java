@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.Map;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.gravitino.Catalog;
+import org.apache.gravitino.CatalogChange;
 import org.apache.gravitino.client.GravitinoMetalake;
 import org.apache.gravitino.integration.test.container.ContainerSuite;
 import org.apache.gravitino.integration.test.container.HiveContainer;
@@ -277,5 +278,39 @@ public class CatalogIT extends AbstractIT {
                     catalogName1, Catalog.Type.RELATIONAL, "hive", "catalog comment", properties));
     Assertions.assertTrue(
         exception.getMessage().contains("Invalid package path: /tmp/none_exist_path_to_package"));
+  }
+
+  @Test
+  public void testAlterCatalogProperties() {
+    Map<String, String> catalogProperties = Maps.newHashMap();
+    catalogProperties.put("key1", "val1");
+    catalogProperties.put("key2", "val2");
+    String cloudName = "aws";
+    String alterCloudName = "azure";
+    String regionCode = "us-east-1";
+    String alterRegionCode = "us-west-2";
+
+    catalogProperties.put(Catalog.CLOUD_NAME, cloudName);
+    catalogProperties.put(Catalog.CLOUD_REGION_CODE, regionCode);
+
+    String catalogName = GravitinoITUtils.genRandomName("test_catalog");
+    ImmutableMap<String, String> props =
+        ImmutableMap.of(Catalog.CLOUD_NAME, cloudName, Catalog.CLOUD_REGION_CODE, regionCode);
+    Catalog catalog =
+        metalake.createCatalog(
+            catalogName, Catalog.Type.FILESET, "hadoop", "catalog comment", props);
+    Assertions.assertTrue(metalake.catalogExists(catalogName));
+    Assertions.assertFalse(catalog.properties().isEmpty());
+    Assertions.assertEquals(cloudName, catalog.properties().get(Catalog.CLOUD_NAME));
+    Assertions.assertEquals(regionCode, catalog.properties().get(Catalog.CLOUD_REGION_CODE));
+
+    metalake.alterCatalog(
+        catalogName,
+        CatalogChange.setProperty(Catalog.CLOUD_NAME, alterCloudName),
+        CatalogChange.setProperty(Catalog.CLOUD_REGION_CODE, alterRegionCode));
+
+    Assertions.assertEquals(alterCloudName, catalog.properties().get(Catalog.CLOUD_NAME));
+    Assertions.assertEquals(alterRegionCode, catalog.properties().get(Catalog.CLOUD_REGION_CODE));
+    metalake.dropCatalog(catalogName);
   }
 }
